@@ -2,53 +2,77 @@
 // UV Sorting machine v1.0
 // A modulized system for sorting UV painted objects into 3 different bins based its color
 //
-#include "functions.h"
 
-// settings
-// pins for the servos, any digital will work
-#define FEEDHWHEEL_PIN 12
-#define CAROUSEL_PIN 13
+#include <Wire.h>
+#include "Adafruit_TCS34725.h"
+
+//color sensor
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+
+// servo1 = gate
+#define GATESERVO_PIN 12
+// servo2 = bin
+#define BINSERVO_PIN  13
 
 // parallax distance sensor
 #define DISTANCESENSOR_PIN 5
-// UV pin
+const int nearDistanceCm = 10; //TODO check with Iman
+
+
+// UV light source pin
 #define UV_PIN 6
 
-// time values
-// distance check: how long to wait between distance sensor checks
-const int waitdistancesensor = 10;
-// color sampling: time to wait between color sensor readings (3x readings performed)
-const int waitcolorreadings = 30;
-// color determining: radius of the confidence interval, 2 stddev 95%, 3 stddev 99%
-const int colordeterminestddev = 2;
-// release: travel time needed to travel past one cup, e.g. 1560ms/6 = 260ms travel time per cup 
-const int travelpercup = 230; // s125 1t 1560/6=260ms - hs322 75ms
-// release: try to preempt an item release before carousel is in position to gain performance
-const int preempttime = 1*travelpercup;
-// delivery: how long to stay put waiting for the item to roll into the bin
-const int waitinpos = 400; // 750 quiet
-
-// standby: how many consequent/unkown analysis should run by before stopping the wheel, 4 is a full rotation
-const int conseqempty = 15;
-// distance sensor trigger values for feed wheel positioning, betweeen 50-750
-const int fardistance = 75;
-
 void setup() {
-  // initialize serial communication:
-  Serial.begin(115200);  
-  Serial.println("Sorting Machine v1.0 - Welcome!");
+  // initialize serial communication
+  Serial.begin(9600);
+  Serial.println("UV Sorting Machine v1.0 - Welcome!");
   Serial.println("");
 
-  // setup counter registers for servos
-  initServo();
+  // initialize I2C for color sensor
+  if (tcs.begin()) {
+    Serial.println("Found TCS34725 sensor");
+  } else {
+    Serial.println("No TCS34725 found ... check your connections");
+    while (1); // halt!
+  }
+
+  //initialize proximity sensor
+
+  //initialize servos
 
 }
 
 void loop() {
-  // main loop of processes
-  feedWheel();
-  sortCarousel();
-  feedWheelMonitor();
-  statusIndicator();
+  while(getDistanceCm() > nearDistanceCm) {
+    
+  }
+  
+}
+
+// distance sensor
+//do an echo with the ultrasound sensor
+int ping(){
+  pinMode(DISTANCESENSOR_PIN, OUTPUT); // Switch signalpin to output
+  digitalWrite(DISTANCESENSOR_PIN, LOW); // Send low pulse 
+  delayMicroseconds(2); // Wait for 2 microseconds
+  digitalWrite(DISTANCESENSOR_PIN, HIGH); // Send high pulse
+  delayMicroseconds(5); // Wait for 5 microseconds
+  digitalWrite(DISTANCESENSOR_PIN, LOW); // Holdoff
+  pinMode(DISTANCESENSOR_PIN, INPUT); // Switch signalpin to input
+  digitalWrite(DISTANCESENSOR_PIN, HIGH); // Turn on pullup resistor
+  // please note that pulseIn has a 1sec timeout, which may
+  // not be desirable. Depending on your sensor specs, you
+  // can likely bound the time like this -- marcmerlin
+  // echo = pulseIn(ultraSoundSignal, HIGH, 38000)
+  int echo = pulseIn(DISTANCESENSOR_PIN, HIGH); //Listen for echo
+  int ultrasoundValue = (echo / 58.138); //convert to CM
+  return ultrasoundValue;
+}
+
+int getDistanceCm()
+{
+  // read the sensor
+  int sensorreading = ping();
+  return sensorreading;
 }
 
