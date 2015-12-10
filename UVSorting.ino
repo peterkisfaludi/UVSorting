@@ -8,6 +8,7 @@
 
 //color sensor
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+uint16_t clear, red, green, blue;
 
 // servo1 = gate
 #define GATESERVO_PIN 12
@@ -17,7 +18,6 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS3472
 // parallax distance sensor
 #define DISTANCESENSOR_PIN 5
 const int nearDistanceCm = 10; //TODO check with Iman
-
 
 // UV light source pin
 #define UV_PIN 6
@@ -33,20 +33,45 @@ void setup() {
     Serial.println("Found TCS34725 sensor");
   } else {
     Serial.println("No TCS34725 found ... check your connections");
-    while (1); // halt!
+    while (1);
   }
 
   //initialize proximity sensor
+  digitalWrite(DISTANCESENSOR_PIN, HIGH); // Turn on pullup resistor
 
   //initialize servos
+
+  // UV light source
+  pinMode(UV_PIN, OUTPUT);
 
 }
 
 void loop() {
-  while(getDistanceCm() > nearDistanceCm) {
-    
-  }
+  //wait for object to be detected
+  getDistanceCm();
+  //while(getDistanceCm() > nearDistanceCm);
   
+  //wait for user closing the door -> container dark
+  delay(5000); //TODO check with Iman
+
+  //turn on UV LED
+  digitalWrite(UV_PIN, HIGH);
+
+  //read color
+  readColor();
+
+  //based on color, rotate bin = carousel = servo2
+
+  //open gate = servo1
+
+  //wait for object to disappear
+  //while(getDistanceCm() <= nearDistanceCm);
+  getDistanceCm();
+
+  //close gate = servo1
+
+  //turn off UV light
+  digitalWrite(UV_PIN, LOW);
 }
 
 // distance sensor
@@ -73,6 +98,21 @@ int getDistanceCm()
 {
   // read the sensor
   int sensorreading = ping();
+  Serial.print("distance = "); Serial.println(sensorreading);
   return sensorreading;
+}
+
+// color sensor
+void readColor(){
+  //TODO check if this is needed
+  //tcs.setInterrupt(true);  // turn off LED
+
+  delay(50);  // takes 50ms to read
+  tcs.getRawData(&red, &green, &blue, &clear);
+  
+  Serial.print("C:\t"); Serial.print(clear);
+  Serial.print("\tR:\t"); Serial.print(red);
+  Serial.print("\tG:\t"); Serial.print(green);
+  Serial.print("\tB:\t"); Serial.print(blue);
 }
 
