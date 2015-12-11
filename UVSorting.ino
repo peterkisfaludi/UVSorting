@@ -9,11 +9,18 @@
 //color sensor
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
 uint16_t clear, red, green, blue;
+float hue, saturation, value;
 
+//servos
+#include <Servo.h>
 // servo1 = gate
 #define GATESERVO_PIN 12
+Servo gateServo;
+int gateServoPos = 0;
 // servo2 = bin
 #define BINSERVO_PIN  13
+Servo binServo;
+int binServoPos = 0;
 
 // parallax distance sensor
 #define DISTANCESENSOR_PIN 5
@@ -40,6 +47,11 @@ void setup() {
   digitalWrite(DISTANCESENSOR_PIN, HIGH); // Turn on pullup resistor
 
   //initialize servos
+  gateServo.attach(GATESERVO_PIN);
+  binServo.attach(BINSERVO_PIN);
+
+  //close gate intially
+  gateServo.write(0);
 
   // UV light source
   pinMode(UV_PIN, OUTPUT);
@@ -60,15 +72,21 @@ void loop() {
   //read color
   readColor();
 
+  classifyColor();
+
   //based on color, rotate bin = carousel = servo2
+  //TODO color reading
+  binServo.write(90);
 
   //open gate = servo1
+  gateServo.write(180);
 
   //wait for object to disappear
   //while(getDistanceCm() <= nearDistanceCm);
   getDistanceCm();
 
   //close gate = servo1
+  gateServo.write(0);
 
   //turn off UV light
   digitalWrite(UV_PIN, LOW);
@@ -96,7 +114,7 @@ int ping(){
 
 int getDistanceCm()
 {
-  // read the sensor
+  // read the distance sensor
   int sensorreading = ping();
   Serial.print("distance = "); Serial.println(sensorreading);
   return sensorreading;
@@ -114,5 +132,53 @@ void readColor(){
   Serial.print("\tR:\t"); Serial.print(red);
   Serial.print("\tG:\t"); Serial.print(green);
   Serial.print("\tB:\t"); Serial.print(blue);
+
+  rgbToHSV();
+
+  Serial.print("\tH:\t"); Serial.print(hue);
+  Serial.print("\tS:\t"); Serial.print(saturation);
+  Serial.print("\tV:\t"); Serial.print(value);  
+}
+
+void classifyColor(){  
+  
+  //blue
+  if(hue > 0.66) {
+    Serial.println("object is blue");
+  } else if (hue > 0.33) {
+    Serial.println("object is green");
+  } else {
+    Serial.println("object is red");
+  }
+}
+
+//RGB to HSV
+void rgbToHSV(){
+
+  //http://www.rapidtables.com/convert/color/rgb-to-hsv.htm
+  //https://github.com/ratkins/RGBConverter/blob/master/RGBConverter.cpp
+  
+  float r = red/255.0;
+  float g = green/255.0;
+  float b = blue/255.0;
+  float Cmax = max(r, max(g, b));
+  float Cmin = max(r, max(g, b));
+  float delta = Cmax - Cmin;
+
+  const float epsi = 0.0001;
+  value = Cmax;
+  saturation = abs(Cmax) < epsi ? 0.0 : delta / Cmax;
+  if (abs(delta) < epsi) { 
+        hue = 0.0; // achromatic
+    } else {
+        if (abs(Cmax - r) < epsi) {
+            hue = (g - b) / delta + (g < b ? 6.0 : 0.0);
+        } else if (abs(Cmax - g) < epsi) {
+            hue = (b - r) / delta + 2.0;
+        } else if (Cmax == b) {
+            hue = (r - g) / delta + 4.0;
+        }
+        hue /= 6.0;
+    }
 }
 
